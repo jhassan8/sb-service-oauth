@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import com.app.oauth.services.IUserService;
 import com.app.users.commons.models.entity.User;
 
+import brave.Tracer;
 import feign.FeignException;
 
 @Component
@@ -19,10 +20,12 @@ public class AuthenticationSuccessErrorHandler implements AuthenticationEventPub
 
 	private Logger log = LoggerFactory.getLogger(AuthenticationSuccessErrorHandler.class);
 	private IUserService iUserService;
+	private Tracer tracer;
 	
 	@Autowired
-	public AuthenticationSuccessErrorHandler(IUserService iUserService) {
+	public AuthenticationSuccessErrorHandler(IUserService iUserService, Tracer tracer) {
 		this.iUserService = iUserService;
+		this.tracer = tracer;
 	}
 	
 	@Override
@@ -43,15 +46,22 @@ public class AuthenticationSuccessErrorHandler implements AuthenticationEventPub
 	public void publishAuthenticationFailure(AuthenticationException exception, Authentication authentication) {
 		
 		try {
+			StringBuilder errors = new StringBuilder();
+			
 			User user = iUserService.findByUsername(authentication.getName());
 			user.setTries(user.getTries() + 1);
 			
+			errors.append("actualn tries: " + user.getTries());
+			
 			if(user.getTries() > 2) {
 				log.error("user %s disabled for maximum failed attempts.", authentication.getName());
+				errors.append(" - user " + authentication.getName() + " disabled for maximum failed attempts.");
 				user.setEnabled(false);
 			}
 			
 			iUserService.update(user, user.getId());
+			
+			tracer.currentSpan().tag("error.message", errors.toString());
 			
 		} catch (FeignException e) {
 			log.error(String.format("user %s dont exist.", authentication.getName()));

@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import com.app.oauth.clients.UserFeignClient;
 
+import brave.Tracer;
 import feign.FeignException;
 
 @Service
@@ -25,9 +26,12 @@ public class UserService implements IUserService, UserDetailsService {
 	
 	private UserFeignClient userFeignClient;
 	
+	private Tracer tracer;
+	
 	@Autowired
-	public UserService(UserFeignClient userFeignClient) {
+	public UserService(UserFeignClient userFeignClient, Tracer tracer) {
 		this.userFeignClient = userFeignClient;
+		this.tracer = tracer;
 	}
 
 	@Override
@@ -47,6 +51,7 @@ public class UserService implements IUserService, UserDetailsService {
 			return new User(user.getUsername(), user.getPassword(), user.getEnabled(), true, true, true, authorities);
 		} catch (FeignException e) {
 			log.error("wrong authentication data.");
+			tracer.currentSpan().tag("error.message", "wrong authentication data : " + e.getMessage());
 			throw new UsernameNotFoundException("wrong authentication data.");
 		}
 	}
