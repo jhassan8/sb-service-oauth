@@ -17,7 +17,7 @@ import org.springframework.stereotype.Service;
 import com.app.oauth.clients.UserFeignClient;
 
 @Service
-public class UserService implements UserDetailsService {
+public class UserService implements IUserService, UserDetailsService {
 	
 	private Logger log = LoggerFactory.getLogger(UserService.class);
 	
@@ -46,6 +46,11 @@ public class UserService implements UserDetailsService {
 		log.info("user authenticated: " + username);
 		
 		return new User(user.getUsername(), user.getPassword(), user.getEnabled(), true, true, true, authorities);
+	}
+
+	@Override
+	public com.app.users.commons.models.entity.User findByUsername(String username) {
+		return userFeignClient.findByUsername(username);
 	}
 
 }
