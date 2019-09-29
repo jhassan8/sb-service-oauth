@@ -53,4 +53,9 @@ public class UserService implements IUserService, UserDetailsService {
 		return userFeignClient.findByUsername(username);
 	}
 
+	@Override
+	public com.app.users.commons.models.entity.User update(com.app.users.commons.models.entity.User user, Long id) {
+		return userFeignClient.update(user, id);
+	}
+
 }
