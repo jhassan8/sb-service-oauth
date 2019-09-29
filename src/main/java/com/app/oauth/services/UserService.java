@@ -16,6 +16,8 @@ import org.springframework.stereotype.Service;
 
 import com.app.oauth.clients.UserFeignClient;
 
+import feign.FeignException;
+
 @Service
 public class UserService implements IUserService, UserDetailsService {
 	
@@ -30,22 +32,23 @@ public class UserService implements IUserService, UserDetailsService {
 
 	@Override
 	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-		com.app.users.commons.models.entity.User user = userFeignClient.findByUsername(username);
 		
-		if(user == null) {
+		try {
+			com.app.users.commons.models.entity.User user = userFeignClient.findByUsername(username);
+			
+			List<GrantedAuthority> authorities = user.getRoles()
+					.stream()
+					.map(role -> new SimpleGrantedAuthority(role.getName()))
+					.peek(authority -> log.info("role: " + authority.getAuthority()))
+					.collect(Collectors.toList());
+			
+			log.info("user authenticated: " + username);
+			
+			return new User(user.getUsername(), user.getPassword(), user.getEnabled(), true, true, true, authorities);
+		} catch (FeignException e) {
 			log.error("wrong authentication data.");
 			throw new UsernameNotFoundException("wrong authentication data.");
 		}
-		
-		List<GrantedAuthority> authorities = user.getRoles()
-				.stream()
-				.map(role -> new SimpleGrantedAuthority(role.getName()))
-				.peek(authority -> log.info("role: " + authority.getAuthority()))
-				.collect(Collectors.toList());
-		
-		log.info("user authenticated: " + username);
-		
-		return new User(user.getUsername(), user.getPassword(), user.getEnabled(), true, true, true, authorities);
 	}
 
 	@Override
